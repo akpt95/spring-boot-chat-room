@@ -1,9 +1,10 @@
 package com.akash.chatroom.chat;
 
 import org.springframework.stereotype.Component;
-
+import com.alibaba.fastjson.JSON;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,7 +25,13 @@ public class WebSocketChatServer {
     private static Map<String, Session> onlineSessions = new ConcurrentHashMap<>();
 
     private static void sendMessageToAll(String msg) {
-        //TODO: add send message method.
+        onlineSessions.forEach((id,session)-> {
+            try {
+                session.getBasicRemote().sendText(msg);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     /**
@@ -32,7 +39,8 @@ public class WebSocketChatServer {
      */
     @OnOpen
     public void onOpen(Session session) {
-        //TODO: add on open connection.
+        onlineSessions.put(session.getId(), session);
+        sendMessageToAll(Message.jsonString("OPEN","","",onlineSessions.size()));
     }
 
     /**
@@ -40,7 +48,8 @@ public class WebSocketChatServer {
      */
     @OnMessage
     public void onMessage(Session session, String jsonStr) {
-        //TODO: add send message.
+        Message message = JSON.parseObject(jsonStr, Message.class);
+        sendMessageToAll(Message.jsonString("SPEAK",message.getUsername(),message.getMsg(),onlineSessions.size()));
     }
 
     /**
@@ -48,8 +57,8 @@ public class WebSocketChatServer {
      */
     @OnClose
     public void onClose(Session session) {
-        //TODO: add close connection.
-    }
+        onlineSessions.remove(session.getId());
+        sendMessageToAll(Message.jsonString("CLOSE","","",onlineSessions.size()));    }
 
     /**
      * Print exception.
